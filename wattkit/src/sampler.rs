@@ -1,3 +1,4 @@
+use core_foundation::dictionary::CFDictionaryRef;
 use oneshot::channel as oneshot_channel;
 use oneshot::Sender as OneshotSender;
 use std::{
@@ -5,8 +6,16 @@ use std::{
     thread::JoinHandle,
 };
 
+use crate::cf_utils::from_cfstr;
+use crate::cf_utils::get_cf_string;
+use crate::io_report::CVoidRef;
+use crate::io_report::IOReportArrayGetValueAtIndex;
 use crate::io_report::IOReportChannelRequest;
+use crate::io_report::IOReportSampleCopyDescription;
 use crate::io_report::IOReportSimpleGetIntegerValue;
+use crate::io_report::IOReportStateGetCount;
+use crate::io_report::IOReportStateGetNameForIndex;
+use crate::io_report::IOReportStateGetResidency;
 use crate::io_report::{EnergyUnit, IOReport, IOReportChannelGroup, IOReportChannelName};
 
 #[derive(thiserror::Error, Debug)]
@@ -36,17 +45,30 @@ struct SampleManager {
     thread_handle: JoinHandle<()>,
 }
 
+pub fn cfio_get_residencies(item: CFDictionaryRef) -> Vec<(String, i64)> {
+    let count = unsafe { IOReportStateGetCount(item) };
+    let mut res = vec![];
+
+    for i in 0..count {
+        let name = unsafe { IOReportStateGetNameForIndex(item, i) };
+        let val = unsafe { IOReportStateGetResidency(item, i) };
+        res.push((from_cfstr(name), val));
+    }
+
+    res
+}
+
 impl SampleManager {
     fn new(duration: u64, num_samples: usize) -> Self {
         let (cancel_tx, cancel_rx) = oneshot_channel();
         let (sample_tx, sample_rx) = channel();
 
         let handle = std::thread::spawn(move || {
-            let requests = vec![IOReportChannelRequest::new(
-                IOReportChannelGroup::EnergyModel,
-                None as Option<IOReportChannelName>,
-            )];
-            let mut report = IOReport::new(requests).unwrap();
+            //let requests = vec![IOReportChannelRequest::new(
+            //    IOReportChannelGroup::EnergyModel,
+            //    None as Option<IOReportChannelName>,
+            //)];
+            let mut report = IOReport::new(vec![]).unwrap();
 
             loop {
                 if cancel_rx.try_recv().is_ok() {
@@ -87,6 +109,22 @@ impl SampleManager {
                                     _ => {}
                                 };
                             }
+                            IOReportChannelGroup::H11ANE => match entry.channel_name {
+                                IOReportChannelName::Unknown(ref u)
+                                    if u == "Allocated Shared Memory" =>
+                                {
+                                    println!("{:?}", entry);
+
+                                    let cv = entry.item as CVoidRef;
+                                    println!("{:?}", cv);
+
+                                    let desc = get_cf_string(|| unsafe {
+                                        IOReportSampleCopyDescription(entry.item, 0)
+                                    });
+                                    println!("Desc: {:?}", desc);
+                                }
+                                _ => {}
+                            },
                             _ => continue,
                         }
                     }
@@ -341,7 +379,7 @@ mod tests {
         let mut sampler = GuardSampler::new();
         {
             let _guard = sampler.subscribe(100, 2);
-            std::thread::sleep(std::time::Duration::from_secs(5));
+            std::thread::sleep(std::time::Duration::from_secs(8))
         }
         let profile = sampler.profile().unwrap();
         println!("{}", profile);

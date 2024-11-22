@@ -47,6 +47,11 @@ extern "C" {
   pub fn IOReportChannelGetChannelName(a: CFDictionaryRef) -> CFStringRef;
   pub fn IOReportSimpleGetIntegerValue(a: CFDictionaryRef, b: *mut i32) -> i64;
   pub fn IOReportChannelGetUnitLabel(a: CFDictionaryRef) -> CFStringRef;
+  pub fn IOReportSampleCopyDescription(a: CFDictionaryRef, b: i64) -> CFStringRef;
+  pub fn IOReportStateGetCount(a: CFDictionaryRef) -> i32;
+  pub fn IOReportStateGetNameForIndex(a: CFDictionaryRef, b: i32) -> CFStringRef;
+  pub fn IOReportStateGetResidency(a: CFDictionaryRef, b: i32) -> i64;
+  pub fn IOReportArrayGetValueAtIndex(a: CFDictionaryRef, b: i64) -> u64;
 }
 
 #[allow(clippy::enum_variant_names)]
@@ -143,7 +148,7 @@ impl<S: AsRef<str>> From<S> for IOReportChannelGroup {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum IOReportChannelName {
     CPUEnergy,
     GPUEnergy,

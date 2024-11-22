@@ -7,7 +7,7 @@ name = "wattkit"
 description = "Measure the energy usage of your Python code!" 
 requires-python = ">=3.8"
 license = "MIT"
-readme = "README.md"
+readme = "../../README.md"
 homepage = "https://github.com/FL33TW00D/coremlprofiler"
 repository = "https://github.com/FL33TW00D/coremlprofiler"
 keywords = ["profiler", "machine learning", "energy usage", "climate"]
